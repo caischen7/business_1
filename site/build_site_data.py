@@ -32,7 +32,7 @@ DATA = ROOT / "data"
 OUT = ROOT / "site" / "data"
 
 SITE_MIN_RATINGS = 1000   # listings the browser search covers
-QUOTE_SHARDS = 128
+QUOTE_SHARDS = 400        # small shards: a lookup fetches ~8 of them
 MIN_NICHE_LISTINGS = 15   # smaller niches are left off the niche board
 
 CATEGORY_LABELS = {
@@ -163,6 +163,7 @@ def main():
     reviews = load("reviews")
     reviews = reviews[reviews["parent_asin"].isin(keep)]
     shards = [dict() for _ in range(QUOTE_SHARDS)]
+    reviews = reviews[reviews["rating"] != 3]   # the page and verdict use low and high quotes only
     for t in reviews.itertuples(index=False):
         text = str(t.review_text) if not pd.isna(t.review_text) else ""
         cut = len(text) >= QUOTE_MAX

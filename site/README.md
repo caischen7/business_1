@@ -17,7 +17,7 @@ A single-page tool built on the Amazon listings and reviews in `data/`, publishe
 | File | What it is |
 |---|---|
 | `index.html` | The whole page: HTML, CSS and JavaScript, no build step. Loads `marked` and `DOMPurify` from cdnjs to render Claude's Markdown. |
-| `build_site_data.py` | Turns `data/*.csv.gz` into `site/data/`: `meta.json`, `niches.json` (with the opportunity score; the rules are in `score_niches()`), `products-<category>.json` (compact rows for listings with 1,000+ ratings; field order in `meta.json`) and `quotes-000..127.json` (quotes sharded by CRC32 of the ASIN; the page fetches only the shards it needs). |
+| `build_site_data.py` | Turns `data/*.csv.gz` into `site/data/`: `meta.json`, `niches.json` (with the opportunity score; the rules are in `score_niches()`), `products-<category>.json` (compact rows for listings with 1,000+ ratings; field order in `meta.json`) and `quotes-000..399.json` (the 1–2 and 4–5 star quotes, sharded by CRC32 of the ASIN; the page fetches only the shards it needs, about 2 MB per lookup). |
 | `tests/serve.py`, `tests/smoke.js` | A local server and a Playwright smoke test with a mock of the claude.ai runtime. |
 
 `site/data/` is git-ignored. Rebuild it after a fresh clone.
