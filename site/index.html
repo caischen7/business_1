@@ -1,0 +1,751 @@
+<title>Product Looker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a packing-slip workbench. A tall form strip on the left on wide screens, results as stacked
+   "slips" on the right; one column on phones. Accent is shipping-label teal; semantic colors only on the scorecard. */
+:root {
+  --bg: #eef1f4;
+  --paper: #ffffff;
+  --ink: #14202e;
+  --muted: #5a6878;
+  --line: #d5dce4;
+  --accent: #0b6e63;
+  --accent-ink: #ffffff;
+  --accent-soft: #d9efeb;
+  --good: #1f7a3a; --good-soft: #e1f2e5;
+  --warn: #9a5b00; --warn-soft: #fbeed6;
+  --bad: #b3261e;  --bad-soft: #f9e0de;
+  --na: #5a6878;   --na-soft: #e8ecf0;
+  --bar: #9fb3c6;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151c; --paper: #17202a; --ink: #e5ebf1; --muted: #9aa8b7; --line: #2a3644;
+  --accent: #3fbfaf; --accent-ink: #062723; --accent-soft: #143a36;
+  --good: #6fd08c; --good-soft: #15301f; --warn: #f0b75a; --warn-soft: #3a2a10;
+  --bad: #ff8a80; --bad-soft: #3d1a18; --na: #9aa8b7; --na-soft: #222d39; --bar: #4f6a83; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151c; --paper: #17202a; --ink: #e5ebf1; --muted: #9aa8b7; --line: #2a3644;
+  --accent: #3fbfaf; --accent-ink: #062723; --accent-soft: #143a36;
+  --good: #6fd08c; --good-soft: #15301f; --warn: #f0b75a; --warn-soft: #3a2a10;
+  --bad: #ff8a80; --bad-soft: #3d1a18; --na: #9aa8b7; --na-soft: #222d39; --bar: #4f6a83; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 60px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-stretch: 112%; line-height: 1.15; text-wrap: balance; margin: 0 }
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em }
+h2 { font-size: 19px; font-weight: 700 }
+h3 { font-size: 15px; font-weight: 700 }
+p { margin: 0 }
+a { color: var(--accent) }
+.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.label { font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.muted { color: var(--muted) }
+.small { font-size: 13px }
+
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px }
+.brand { display: flex; flex-direction: column; gap: 4px }
+.brand p { color: var(--muted); max-width: 60ch }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap }
+nav.tabs button { font: 600 14px var(--body); border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  padding: 8px 14px; border-radius: 999px; cursor: pointer }
+nav.tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+.slip { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.slip > header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap }
+
+.lookup { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 18px; align-items: start }
+@media (max-width: 880px) { .lookup { grid-template-columns: 1fr } }
+form.idea { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 12px }
+@media (max-width: 880px) { form.idea { position: static } }
+.field { display: flex; flex-direction: column; gap: 4px }
+.field label { font-weight: 600; font-size: 13px }
+.field .hint { font-size: 12px; color: var(--muted) }
+input, select, textarea { font: 15px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; width: 100%; min-width: 0 }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.btn { font: 600 14px var(--body); border-radius: var(--r); padding: 10px 14px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink) }
+.btn.ghost { background: transparent; color: var(--accent) }
+.btn[disabled] { opacity: .55; cursor: progress }
+.results { display: flex; flex-direction: column; gap: 18px; min-width: 0 }
+
+.verdict-head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center }
+.stamp { font: 800 13px/1 var(--display); font-stretch: 120%; letter-spacing: .06em; text-transform: uppercase; padding: 8px 12px; border: 2px solid currentColor; border-radius: 4px; transform: rotate(-1.5deg) }
+.stamp.good { color: var(--good) } .stamp.warn { color: var(--warn) } .stamp.bad { color: var(--bad) }
+
+.score { display: grid; grid-template-columns: minmax(130px, 180px) auto minmax(0, 1fr); gap: 0; border-top: 1px solid var(--line) }
+.score > div { padding: 9px 8px 9px 0; border-bottom: 1px solid var(--line); min-width: 0 }
+.score .k { font-weight: 600 }
+@media (max-width: 560px) { .score { grid-template-columns: 1fr auto } .score .ev { grid-column: 1 / -1; padding-top: 0 } }
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 600 12px/1 var(--mono); padding: 4px 8px; border-radius: 999px; white-space: nowrap }
+.chip::before { font-size: 11px }
+.chip.good { background: var(--good-soft); color: var(--good) } .chip.good::before { content: "●" }
+.chip.warn { background: var(--warn-soft); color: var(--warn) } .chip.warn::before { content: "▲" }
+.chip.bad  { background: var(--bad-soft);  color: var(--bad) }  .chip.bad::before  { content: "■" }
+.chip.na   { background: var(--na-soft);   color: var(--na) }   .chip.na::before   { content: "○" }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r) }
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg); white-space: nowrap; position: sticky; top: 0 }
+td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+tr:last-child td { border-bottom: 0 }
+td .t { display: block; min-width: 220px; max-width: 46ch }
+th button.sort { all: unset; cursor: pointer } th button.sort:focus-visible { outline: 2px solid var(--accent) }
+tbody tr.click { cursor: pointer } tbody tr.click:hover, tbody tr.sel { background: var(--accent-soft) }
+
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr } }
+.bars { display: flex; flex-direction: column; gap: 7px }
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 2px 10px; font-size: 13px }
+.bar .track { grid-column: 1 / -1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden }
+.bar .fill { height: 100%; background: var(--bar) }
+.bar.c .fill { background: var(--bad) } .bar.p .fill { background: var(--good) }
+.bar .v { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums }
+
+.quotes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+@media (max-width: 720px) { .quotes { grid-template-columns: 1fr } }
+blockquote { margin: 0; padding: 10px 12px; border-left: 3px solid var(--line); background: var(--bg); border-radius: 0 var(--r) var(--r) 0; font-size: 13px; display: flex; flex-direction: column; gap: 4px }
+blockquote.lo { border-left-color: var(--bad) } blockquote.hi { border-left-color: var(--good) }
+blockquote cite { font-style: normal; font-size: 12px; color: var(--muted) }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px }
+.fact { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.fact .v { font: 600 20px var(--mono); font-variant-numeric: tabular-nums }
+svg.spark { width: 100%; height: 70px; display: block }
+
+.report { font-size: 14.5px; line-height: 1.6; max-width: 78ch }
+.report h1, .report h2 { font-size: 18px; margin: 18px 0 6px } .report h3 { margin: 14px 0 4px }
+.report p, .report ul, .report ol { margin: 0 0 10px } .report table { margin: 8px 0 12px }
+.report blockquote { margin: 0 0 10px }
+.qcheck { font-size: 13px; padding: 8px 12px; border-radius: var(--r); background: var(--na-soft) }
+.qcheck.ok { background: var(--good-soft); color: var(--good) } .qcheck.miss { background: var(--warn-soft); color: var(--warn) }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.note { font-size: 13px; color: var(--muted) }
+.err { color: var(--bad); font-size: 13px }
+.status { font: 500 13px var(--mono); color: var(--muted) }
+
+.nichebar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end }
+.nichebar .field { min-width: 160px; flex: 1 }
+.scorebar { display: inline-block; width: 70px; height: 6px; background: var(--bg); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden }
+.scorebar i { display: block; height: 100%; background: var(--accent) }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px }
+
+.calc { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start }
+@media (max-width: 820px) { .calc { grid-template-columns: 1fr } }
+.ledger { width: 100%; font-size: 14px }
+.ledger td { padding: 6px 0; border-bottom: 1px dashed var(--line) }
+.ledger tr.total td { border-bottom: 0; border-top: 2px solid var(--ink); font-weight: 700; padding-top: 10px }
+.prose { max-width: 70ch; display: flex; flex-direction: column; gap: 10px }
+.prose ul { margin: 0; padding-left: 20px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="label">Dropshipping product research · Amazon Reviews '23</span>
+      <h1>Product Looker</h1>
+      <p id="tagline">Type a product you're thinking of selling. See what Amazon buyers already say about the closest listings, whether the numbers work, and what will go wrong.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-lookup" aria-selected="true" aria-controls="view-lookup">Look up a product</button>
+      <button role="tab" id="tab-niches" aria-selected="false" aria-controls="view-niches">Niches</button>
+      <button role="tab" id="tab-margin" aria-selected="false" aria-controls="view-margin">Margin calculator</button>
+      <button role="tab" id="tab-about" aria-selected="false" aria-controls="view-about">About the data</button>
+    </nav>
+  </header>
+
+  <!-- LOOK UP -->
+  <section id="view-lookup" role="tabpanel" aria-labelledby="tab-lookup">
+    <div class="lookup">
+      <form class="slip idea" id="ideaForm" autocomplete="off">
+        <div class="field">
+          <label for="q">Product idea</label>
+          <input id="q" value="dog grooming brush" required>
+          <span class="hint">A few words, the way a listing title would say it.</span>
+        </div>
+        <div class="field">
+          <label for="cat">Category</label>
+          <select id="cat">
+            <option value="">All four categories</option>
+            <option value="Pet_Supplies" selected>Pet Supplies</option>
+            <option value="Beauty_and_Personal_Care">Beauty &amp; Personal Care</option>
+            <option value="Sports_and_Outdoors">Sports &amp; Outdoors</option>
+            <option value="Home_and_Kitchen">Home &amp; Kitchen</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="price">Your price ($)</label><input id="price" type="number" step="0.01" min="0" value="24.99"></div>
+          <div class="field"><label for="cost">Supplier cost ($)</label><input id="cost" type="number" step="0.01" min="0" value="6"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="ship">Shipping ($/order)</label><input id="ship" type="number" step="0.01" min="0" value="4"></div>
+          <div class="field"><label for="days">Delivery (days)</label><input id="days" type="number" step="1" min="0" placeholder="e.g. 8"></div>
+        </div>
+        <div class="field">
+          <label for="angle">Angle or target buyer <span class="muted">(optional)</span></label>
+          <textarea id="angle" rows="2" placeholder="e.g. self-cleaning button, for long-haired breeds"></textarea>
+        </div>
+        <button class="btn" id="go" type="submit">Look it up</button>
+        <span class="status" id="loadStatus" role="status">Loading listings…</span>
+        <span class="note">Leave price, cost or shipping blank to use estimates from the matched listings. Estimates are labeled.</span>
+      </form>
+
+      <div class="results" id="results" aria-live="polite">
+        <div class="slip"><p class="muted">Loading the example lookup…</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NICHES -->
+  <section id="view-niches" role="tabpanel" aria-labelledby="tab-niches" hidden>
+    <div class="results">
+      <div class="slip">
+        <header><h2>Niche board</h2><span class="note" id="nicheCount"></span></header>
+        <p class="small muted">Every Amazon sub-category with at least 15 listings priced $10–$100 and 100+ ratings. The opportunity score rewards demand, growth from 2021 to 2022, a high share of unhappy buyers (a gap a better product can fill), room for new sellers and a $20–$60 median price. It subtracts points for ingestible, topical or weapon products and for heavy or bulky ones. Click a row for its breakdown.</p>
+        <div class="nichebar">
+          <div class="field"><label for="nq">Search niches</label><input id="nq" placeholder="e.g. litter, yoga, hair"></div>
+          <div class="field"><label for="ncat">Category</label>
+            <select id="ncat"><option value="">All</option><option value="Pet_Supplies">Pet Supplies</option><option value="Beauty_and_Personal_Care">Beauty &amp; Personal Care</option><option value="Sports_and_Outdoors">Sports &amp; Outdoors</option><option value="Home_and_Kitchen">Home &amp; Kitchen</option></select></div>
+          <div class="field"><label for="nmin">Min. listings</label><input id="nmin" type="number" min="15" value="40"></div>
+        </div>
+        <div class="tablewrap" style="max-height: 560px"><table id="nicheTable"></table></div>
+        <div class="actions"><button class="btn ghost" id="nicheMore" type="button">Show 50 more</button></div>
+      </div>
+      <div id="nicheDetail"></div>
+    </div>
+  </section>
+
+  <!-- MARGIN -->
+  <section id="view-margin" role="tabpanel" aria-labelledby="tab-margin" hidden>
+    <div class="calc">
+      <form class="slip" id="calcForm" autocomplete="off">
+        <h2>Per-order margin</h2>
+        <div class="row2">
+          <div class="field"><label for="m_price">Retail price</label><input id="m_price" type="number" step="0.01" value="24.99"></div>
+          <div class="field"><label for="m_cost">Supplier cost</label><input id="m_cost" type="number" step="0.01" value="6"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="m_ship">Shipping</label><input id="m_ship" type="number" step="0.01" value="4"></div>
+          <div class="field"><label for="m_other">Packaging, apps ($/order)</label><input id="m_other" type="number" step="0.01" value="0.75"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="m_feep">Payment fee (%)</label><input id="m_feep" type="number" step="0.1" value="2.9"></div>
+          <div class="field"><label for="m_feef">Payment fee ($)</label><input id="m_feef" type="number" step="0.01" value="0.30"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="m_refund">Refunds (% of orders)</label><input id="m_refund" type="number" step="0.5" value="6"></div>
+          <div class="field"><label for="m_cpa">Ad cost per purchase</label><input id="m_cpa" type="number" step="0.5" value="12"></div>
+        </div>
+        <span class="note">Payment fee defaults are Shopify Payments' Basic online rate. Refunds are charged as lost product, shipping and fees on that share of orders.</span>
+      </form>
+      <div class="slip" id="calcOut"></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="view-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+    <div class="slip prose" id="aboutBody">
+      <h2>Where the numbers come from</h2>
+      <p>Listings and reviews come from <a href="https://amazon-reviews-2023.github.io/" target="_blank" rel="noopener">Amazon Reviews '23</a> (McAuley Lab, UC San Diego), with reviews through September 2023, for four categories: Pet Supplies, Beauty &amp; Personal Care, Sports &amp; Outdoors, and Home &amp; Kitchen.</p>
+      <p id="aboutCounts" class="mono small"></p>
+      <ul>
+        <li><b>Which listings.</b> Listings priced $10–$100 with 100+ ratings make up the niche board. The product search covers the ones with 1,000+ ratings, so a lookup compares you with sellers who have proven demand.</li>
+        <li><b>Complaint and praise rates</b> are counted over every review of a listing, not a sample. Complaint rates use 1–2 star reviews and praise rates use 4–5 star reviews. They come from keyword rules, so read the quotes before trusting a rate.</li>
+        <li><b>Quotes</b> are the most helpful verified reviews of each listing: two low, one middle and two high. They are not a random sample.</li>
+        <li><b>Trend</b> compares reviews written in 2021 with 2022, the last two full years. Reviews in 2023 run only through September.</li>
+        <li><b>Prices</b> are from when the data was collected (2023) and there are no supplier prices, so cost and shipping estimates are labeled as estimates.</li>
+      </ul>
+      <h2>What it can't tell you</h2>
+      <ul>
+        <li>Anything after September 2023. Check TikTok Creative Center, Google Trends and Amazon's current best sellers before you spend money.</li>
+        <li>How your store will sell. Amazon buyers get fast shipping and easy returns, while your buyers come from ads and wait longer. Treat demand here as proof that people want the thing, not as a forecast.</li>
+        <li>Whether a product looks good on video. Claude's verdict gives a judgment on that, labeled as one.</li>
+      </ul>
+      <h2>Scorecard rules</h2>
+      <ul>
+        <li><b>Demand</b> is green when the matched listings hold 30,000+ ratings in total, and amber at 8,000+.</li>
+        <li><b>Trend</b> is green at +10% or more reviews from 2021 to 2022, and red below −15%.</li>
+        <li><b>Competition</b> is red when one seller holds half the matched ratings or the niche's top three hold half, and amber at 30%.</li>
+        <li><b>Margin</b> is green at 3x markup over cost plus shipping with $15+ profit before ads, and amber at 2x or $8+.</li>
+        <li><b>Shipping</b> is amber over 2 lb, over 18 inches or for fragile products, and red over 5 lb or 30 inches.</li>
+        <li><b>Returns</b> is green when under 8% of reviews are 1–2 stars, and red at 13% or more.</li>
+        <li><b>Rules and ad policy</b> is red when 40%+ of matches are ingestible, topical or weapons, and amber for batteries, plug-ins, aerosols or kids' products.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n, d = 0) => n == null || isNaN(n) ? "–" : Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const money = n => n == null || isNaN(n) ? "–" : "$" + fmt(n, 2);
+const pct = (n, d = 0) => n == null || isNaN(n) ? "–" : fmt(100 * n, d) + "%";
+const signed = n => n == null || isNaN(n) ? "–" : (n >= 0 ? "+" : "−") + fmt(Math.abs(100 * n), 0) + "%";
+
+const S = { meta: null, niches: null, products: {}, tokens: {}, quoteShards: {}, last: null, sample: undefined, downloads: undefined };
+let F = {};
+
+// ---------- data loading ----------
+async function getJSON(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(`${path}: ${r.status}`);
+  return r.json();
+}
+const STOP = new Set("a an and the for with of to in on by or set pack pcs piece pieces x inch inches oz ml lb new 1 2 3 4 5 6 10 12".split(" "));
+function stem(w) { return w.length > 4 && w.endsWith("es") && !w.endsWith("ses") ? w.slice(0, -2) : (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w); }
+function tok(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter(w => w && !STOP.has(w)).map(stem); }
+async function loadCategory(cat) {
+  if (S.products[cat]) return;
+  const rows = await getJSON(`data/products-${cat}.json`);
+  S.products[cat] = rows;
+  S.tokens[cat] = rows.map(r => new Set(tok(r[F.title] + " " + r[F.store])));
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(s) { let c = 0xFFFFFFFF; for (let i = 0; i < s.length; i++) c = CRC[(c ^ s.charCodeAt(i)) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function quotesFor(asins) {
+  const shards = [...new Set(asins.map(a => crc32(a) % S.meta.quote_shards))];
+  await Promise.all(shards.map(async i => {
+    if (!S.quoteShards[i]) S.quoteShards[i] = getJSON(`data/quotes-${String(i).padStart(3, "0")}.json`);
+    S.quoteShards[i] = await S.quoteShards[i];
+  }));
+  const out = {};
+  for (const a of asins) out[a] = (S.quoteShards[crc32(a) % S.meta.quote_shards] || {})[a] || [];
+  return out;
+}
+
+// ---------- search ----------
+function search(q, cats) {
+  const qt = [...new Set(tok(q))];
+  if (!qt.length) return [];
+  let N = 0; const df = Object.fromEntries(qt.map(t => [t, 0]));
+  for (const c of cats) for (const set of S.tokens[c]) { N++; for (const t of qt) if (set.has(t)) df[t]++; }
+  const idf = Object.fromEntries(qt.map(t => [t, Math.log((N + 1) / (df[t] + 0.5))]));
+  const total = qt.reduce((s, t) => s + idf[t], 0);
+  const hits = [];
+  for (const c of cats) {
+    const rows = S.products[c], sets = S.tokens[c];
+    for (let i = 0; i < rows.length; i++) {
+      let s = 0; for (const t of qt) if (sets[i].has(t)) s += idf[t];
+      if (s >= 0.62 * total) hits.push({ row: rows[i], cat: c, score: s / total + 0.04 * Math.log10(rows[i][F.ratings]) });
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits.slice(0, 12);
+}
+
+// ---------- evidence and scorecard ----------
+const SHIP_EST = w => w == null ? 5 : w <= 0.5 ? 3.5 : w <= 1 ? 4.5 : w <= 2 ? 6.5 : w <= 5 ? 10 : 16;
+const median = a => { const v = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!v.length) return null; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+function pool(rows) {
+  const sum = k => rows.reduce((s, r) => s + (r[F[k]] || 0), 0);
+  const p = { n: rows.length, ratings: sum("ratings"), reviews: sum("reviews"), low: sum("low"), high: sum("high") };
+  p.years = S.meta.years.map(y => sum("y" + y));
+  p.y21 = sum("y2021"); p.y22 = sum("y2022");
+  p.growth = p.y21 ? (p.y22 - p.y21) / p.y21 : null;
+  p.lowShare = p.reviews ? p.low / p.reviews : null;
+  p.complaints = S.meta.complaints.map(k => ({ k, n: sum("c_" + k), rate: p.low ? sum("c_" + k) / p.low : 0 })).sort((a, b) => b.rate - a.rate);
+  p.praise = S.meta.praise.map(k => ({ k, n: sum("p_" + k), rate: p.high ? sum("p_" + k) / p.high : 0 })).sort((a, b) => b.rate - a.rate);
+  p.price = median(rows.map(r => r[F.price])); p.weight = median(rows.map(r => r[F.weight])); p.side = median(rows.map(r => r[F.side]));
+  p.flagShare = Object.fromEntries(S.meta.flags.map(f => [f, rows.filter(r => (r[F.flags] || "").split(";").includes(f)).length / Math.max(rows.length, 1)]));
+  const byStore = {}; rows.forEach(r => byStore[r[F.store] || "(no store)"] = (byStore[r[F.store] || "(no store)"] || 0) + r[F.ratings]);
+  p.stores = Object.entries(byStore).sort((a, b) => b[1] - a[1]);
+  p.topStoreShare = p.ratings ? p.stores[0][1] / p.ratings : 0;
+  const nc = {}; rows.forEach(r => { if (r[F.niche] >= 0) nc[r[F.niche]] = (nc[r[F.niche]] || 0) + r[F.ratings]; });
+  const nid = Object.entries(nc).sort((a, b) => b[1] - a[1])[0];
+  p.niche = nid ? S.niches[+nid[0]] : null;
+  return p;
+}
+function economics(p, inp) {
+  const price = inp.price ?? p.price, cost = inp.cost ?? (price != null ? 0.3 * price : null), ship = inp.ship ?? SHIP_EST(p.weight);
+  const fees = price != null ? price * 0.029 + 0.30 : null;
+  const profit = price != null ? price - cost - ship - fees : null;
+  const markup = price != null && cost + ship > 0 ? price / (cost + ship) : null;
+  return { price, cost, ship, fees, profit, markup, est: { price: inp.price == null, cost: inp.cost == null, ship: inp.ship == null } };
+}
+function scorecard(p, e) {
+  const out = [];
+  const add = (k, s, ev) => out.push({ k, s, ev });
+  add("Demand", p.ratings >= 30000 ? "good" : p.ratings >= 8000 ? "warn" : "bad",
+    `${fmt(p.ratings)} ratings across ${p.n} matched listings, each with 1,000+.`);
+  add("Trend", p.growth == null ? "na" : p.growth >= 0.10 ? "good" : p.growth >= -0.15 ? "warn" : "bad",
+    p.growth == null ? "Not enough 2021 reviews to compare." : `Reviews ${signed(p.growth)} from 2021 (${fmt(p.y21)}) to 2022 (${fmt(p.y22)}).`);
+  const nt = p.niche ? p.niche.top3_share : 0;
+  add("Competition", p.topStoreShare >= 0.5 || nt >= 0.5 ? "bad" : p.topStoreShare >= 0.3 || nt >= 0.3 ? "warn" : "good",
+    `Top seller in the matches: ${p.stores[0][0]} with ${pct(p.topStoreShare)} of ratings.` + (p.niche ? ` Top three stores hold ${pct(nt)} of the ${p.niche.niche} niche.` : ""));
+  const est = [e.est.price && "price", e.est.cost && "cost", e.est.ship && "shipping"].filter(Boolean);
+  add("Margin", e.profit == null ? "na" : (e.markup >= 3 && e.profit >= 15) ? "good" : (e.markup >= 2 || e.profit >= 8) ? "warn" : "bad",
+    e.profit == null ? "No price to work from." : `${money(e.profit)} per order before ads, ${fmt(e.markup, 1)}x markup over cost and shipping.` + (est.length ? ` Estimated ${est.join(", ")}.` : ""));
+  const heavy = (p.weight || 0) > 5 || (p.side || 0) > 30, mid = (p.weight || 0) > 2 || (p.side || 0) > 18 || p.flagShare.fragile >= 0.4;
+  add("Shipping", heavy ? "bad" : mid ? "warn" : (p.weight == null && p.side == null ? "na" : "good"),
+    `Median ${p.weight != null ? fmt(p.weight, 1) + " lb" : "weight unknown"}, longest side ${p.side != null ? fmt(p.side, 0) + " in" : "unknown"}` + (p.flagShare.fragile >= 0.4 ? ", often fragile." : "."));
+  const ret = p.complaints.filter(c => ["size_fit", "not_as_pictured", "broke_cheap", "stopped_working"].includes(c.k)).sort((a, b) => b.rate - a.rate)[0];
+  add("Returns", p.lowShare == null ? "na" : p.lowShare < 0.08 ? "good" : p.lowShare < 0.13 ? "warn" : "bad",
+    `${pct(p.lowShare, 1)} of ${fmt(p.reviews)} reviews are 1–2 stars.` + (ret && ret.rate > 0 ? ` Top return driver: ${S.meta.labels[ret.k].toLowerCase()} (${pct(ret.rate)} of low-star reviews).` : ""));
+  const hard = ["ingestible", "topical", "sharp_weapon"].filter(f => p.flagShare[f] >= 0.4);
+  const soft = ["battery", "plug_in", "liquid_aerosol", "kids"].filter(f => p.flagShare[f] >= 0.4);
+  const FL = { ingestible: "ingestible", topical: "applied to skin or hair", sharp_weapon: "blades or weapons", battery: "batteries", plug_in: "plug-in electrical", liquid_aerosol: "liquids or aerosols", kids: "for kids" };
+  add("Rules and ad policy", hard.length ? "bad" : soft.length ? "warn" : "good",
+    hard.length || soft.length ? `Most matches are ${[...hard, ...soft].map(f => FL[f]).join(", ")}. Check FDA, CPSC and Meta or TikTok ad rules.` : "No regulated-product flags in most matches.");
+  add("Video appeal", "na", "Judgment. Ask Claude below, or film the sample yourself.");
+  return out;
+}
+function overall(card) {
+  const red = card.filter(c => c.s === "bad").length, green = card.filter(c => c.s === "good").length;
+  if (red >= 2) return { s: "bad", t: "Fix before testing" };
+  if (red === 1 || green < 4) return { s: "warn", t: "Test with care" };
+  return { s: "good", t: "Worth a sample order" };
+}
+
+// ---------- rendering: look up ----------
+const shortName = t => t.split(/[,|(\-–—]/)[0].split(" ").slice(0, 7).join(" ");
+function sparkSVG(values, labels, partialLast = true) {
+  const W = 320, H = 70, pad = 18, max = Math.max(...values, 1);
+  const x = i => pad + i * (W - 2 * pad) / Math.max(values.length - 1, 1), y = v => H - 16 - (v / max) * (H - 30);
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const area = `${x(0)},${H - 16} ${pts} ${x(values.length - 1)},${H - 16}`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Reviews per year: ${values.map((v, i) => labels[i] + " " + v).join(", ")}">
+    <line x1="${pad}" x2="${W - pad}" y1="${H - 16}" y2="${H - 16}" stroke="var(--line)"/>
+    <polygon points="${area}" fill="var(--accent-soft)"/>
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    ${values.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === values.length - 1 ? 3.5 : 2.5}" fill="${i === values.length - 1 && partialLast ? "var(--paper)" : "var(--accent)"}" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="${x(i)}" y="${H - 3}" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="var(--muted)">${labels[i]}${i === values.length - 1 && partialLast ? "*" : ""}</text>`).join("")}
+  </svg>`;
+}
+function barsHTML(list, denom, cls, limit = 6) {
+  const shown = list.filter(x => x.n > 0).slice(0, limit), max = Math.max(...shown.map(x => x.rate), 0.01);
+  return shown.map(x => `<div class="bar ${cls}"><span>${esc(S.meta.labels[x.k])}</span><span class="v">${pct(x.rate)}</span>
+    <div class="track"><div class="fill" style="width:${(100 * x.rate / max).toFixed(1)}%"></div></div></div>`).join("")
+    || `<p class="note">No matching reviews.</p>`;
+}
+function readInputs() {
+  const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
+  return { q: $("q").value.trim(), cat: $("cat").value, price: num("price"), cost: num("cost"), ship: num("ship"), days: num("days"), angle: $("angle").value.trim() };
+}
+
+async function runLookup(ev) {
+  ev && ev.preventDefault();
+  const inp = readInputs();
+  if (!inp.q) return;
+  const cats = inp.cat ? [inp.cat] : Object.keys(S.meta.categories);
+  $("go").disabled = true; $("loadStatus").textContent = "Loading listings…";
+  try { await Promise.all(cats.map(loadCategory)); }
+  catch (e) { $("loadStatus").textContent = "Couldn't load the listings. Reload the page to try again."; $("go").disabled = false; return; }
+  $("go").disabled = false;
+  $("loadStatus").textContent = `${fmt(cats.reduce((s, c) => s + S.products[c].length, 0))} listings searched`;
+  const hits = search(inp.q, cats);
+  S.last = { inp, hits, checked: new Set(hits.slice(0, 8).map(h => h.row[F.asin])), report: null };
+  renderLookup();
+}
+async function renderLookup() {
+  const L = S.last, box = $("results");
+  if (!L.hits.length) {
+    box.innerHTML = `<div class="slip"><h2>No close listings for “${esc(L.inp.q)}”</h2><p class="muted">Try fewer or more common words (“cat water fountain” instead of “ceramic cat fountain with filter”), or search all four categories.</p></div>`;
+    return;
+  }
+  const rows = L.hits.filter(h => L.checked.has(h.row[F.asin])).map(h => h.row);
+  if (!rows.length) { box.innerHTML = `<div class="slip"><p>Tick at least one listing to compare against.</p></div>` + compsHTML(); bindComps(); return; }
+  const p = pool(rows), e = economics(p, L.inp), card = scorecard(p, e), ov = overall(card);
+  L.pool = p; L.econ = e; L.card = card; L.overall = ov;
+  const qs = await quotesFor(rows.map(r => r[F.asin]));
+  const lo = [], hi = [];
+  rows.forEach(r => (qs[r[F.asin]] || []).forEach(q => (q[0] <= 2 ? lo : q[0] >= 4 ? hi : []).push({ r, q })));
+  lo.sort((a, b) => b.q[3] - a.q[3]); hi.sort((a, b) => b.q[3] - a.q[3]);
+  L.quotes = { lo, hi, all: rows.flatMap(r => (qs[r[F.asin]] || []).map(q => ({ r, q }))) };
+  const n = p.niche;
+  box.innerHTML = `
+    <div class="slip">
+      <header><div class="verdict-head"><h2>${esc(L.inp.q)}</h2><span class="stamp ${ov.s}">${ov.t}</span></div>
+        <span class="note">${p.n} listings compared${n ? ` · mostly <b>${esc(n.niche)}</b>` : ""}</span></header>
+      <div class="score">${card.map(c => `<div class="k">${c.k}</div><div><span class="chip ${c.s}">${{ good: "Good", warn: "Watch", bad: "Risk", na: "Unknown" }[c.s]}</span></div><div class="ev small">${esc(c.ev)}</div>`).join("")}</div>
+    </div>
+    <div class="cols">
+      <div class="slip"><header><h3>What unhappy buyers say</h3><span class="note">share of ${fmt(p.low)} one- and two-star reviews</span></header>${barsHTML(p.complaints, p.low, "c")}</div>
+      <div class="slip"><header><h3>What happy buyers praise</h3><span class="note">share of ${fmt(p.high)} four- and five-star reviews</span></header>${barsHTML(p.praise, p.high, "p")}</div>
+    </div>
+    <div class="cols">
+      <div class="slip"><header><h3>Reviews per year, matched listings</h3><span class="note">*2023 runs through September</span></header>${sparkSVG(p.years, S.meta.years)}</div>
+      <div class="slip"><header><h3>Unit economics</h3><button class="btn ghost" type="button" id="toCalc">Open in calculator</button></header>
+        <div class="facts">
+          <div class="fact"><span class="label">Price${e.est.price ? " (median match)" : ""}</span><span class="v">${money(e.price)}</span></div>
+          <div class="fact"><span class="label">Cost + ship${e.est.cost || e.est.ship ? " (est.)" : ""}</span><span class="v">${money((e.cost || 0) + (e.ship || 0))}</span></div>
+          <div class="fact"><span class="label">Profit before ads</span><span class="v">${money(e.profit)}</span></div>
+          <div class="fact"><span class="label">Markup</span><span class="v">${fmt(e.markup, 1)}x</span></div>
+        </div>
+        <p class="note">Matched listings sell for ${money(Math.min(...rows.map(r => r[F.price] ?? Infinity)))}–${money(Math.max(...rows.map(r => r[F.price] ?? 0)))} on Amazon (2023 prices).${e.est.cost ? " Supplier cost is estimated at 30% of price." : ""}${e.est.ship ? " Shipping is estimated from the median weight." : ""}</p>
+      </div>
+    </div>
+    ${compsHTML()}
+    <div class="slip"><header><h3>In buyers' words</h3><span class="note">most helpful verified reviews of the listings above</span></header>
+      <div class="quotes">${[...lo.slice(0, 4).map(x => quoteHTML(x, "lo")), ...hi.slice(0, 4).map(x => quoteHTML(x, "hi"))].join("") || `<p class="note">No quotes saved for these listings.</p>`}</div>
+    </div>
+    <div class="slip" id="claudeBox"><header><h3>Claude's verdict</h3><span class="note">Uses your Claude account. About a minute.</span></header>
+      <p class="small muted">Claude reads the evidence on this page and writes a candid go, change or skip verdict with risks, opportunities and the cheapest next test. Every quote it uses is checked word for word against the reviews above.</p>
+      <div class="actions"><button class="btn" type="button" id="askClaude">Get Claude's verdict</button><span class="status" id="claudeStatus"></span></div>
+      <div id="report"></div>
+    </div>`;
+  bindComps();
+  $("toCalc").onclick = () => { fillCalc(e); showTab("margin"); };
+  $("askClaude").onclick = askClaude;
+  if (L.report) showReport(L.report, true);
+}
+function quoteHTML({ r, q }, cls) {
+  return `<blockquote class="${cls}"><b>${esc(q[1])}</b><span>${esc(q[2])}</span><cite>${esc(shortName(r[F.title]))} · ${q[0]} stars · ${q[4] ?? ""}${q[3] ? ` · ${fmt(q[3])} found it helpful` : ""}</cite></blockquote>`;
+}
+function compsHTML() {
+  const L = S.last;
+  return `<div class="slip"><header><h3>Closest listings</h3><span class="note">Untick a listing that isn't really your product; everything above updates.</span></header>
+    <div class="tablewrap"><table><thead><tr><th>Use</th><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">1–2★</th><th class="n">2021→22</th><th class="n">Listed</th></tr></thead><tbody>
+    ${L.hits.map(h => { const r = h.row, g = r[F.y2021] ? (r[F.y2022] - r[F.y2021]) / r[F.y2021] : null;
+      return `<tr><td><input type="checkbox" class="comp" aria-label="Use ${esc(shortName(r[F.title]))}" data-a="${r[F.asin]}" ${L.checked.has(r[F.asin]) ? "checked" : ""}></td>
+      <td><span class="t">${esc(r[F.title])}</span><span class="note">${esc(r[F.store])} · <a href="https://www.amazon.com/dp/${r[F.asin]}" target="_blank" rel="noopener">${r[F.asin]}</a></span></td>
+      <td class="n">${money(r[F.price])}</td><td class="n">${fmt(r[F.rating], 1)}</td><td class="n">${fmt(r[F.ratings])}</td>
+      <td class="n">${pct(r[F.reviews] ? r[F.low] / r[F.reviews] : null)}</td><td class="n">${signed(g)}</td><td class="n">${r[F.listed] ?? "–"}</td></tr>`; }).join("")}
+    </tbody></table></div></div>`;
+}
+function bindComps() {
+  document.querySelectorAll("input.comp").forEach(cb => cb.onchange = () => {
+    cb.checked ? S.last.checked.add(cb.dataset.a) : S.last.checked.delete(cb.dataset.a);
+    S.last.report = null; renderLookup();
+  });
+}
+
+// ---------- Claude ----------
+async function getSample() {
+  if (S.sample === undefined) S.sample = window.claude && window.claude.use ? await window.claude.use("sample").catch(() => null) : null;
+  return S.sample;
+}
+const HIDE = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+function evidencePacket() {
+  const L = S.last, p = L.pool, e = L.econ;
+  const rows = L.hits.filter(h => L.checked.has(h.row[F.asin])).map(h => h.row);
+  const quotes = L.quotes.all.map(({ r, q }, i) => ({ id: "Q" + (i + 1), product: shortName(r[F.title]), stars: q[0], year: q[4], helpful: q[3], title: q[1], text: q[2] }));
+  return {
+    idea: { product: L.inp.q, angle: L.inp.angle || null, your_price: L.inp.price, supplier_cost: L.inp.cost, shipping_per_order: L.inp.ship, delivery_days: L.inp.days },
+    economics: { price_used: e.price, cost_used: e.cost, shipping_used: e.ship, payment_fees: +e.fees?.toFixed(2), profit_before_ads: +e.profit?.toFixed(2), markup: +e.markup?.toFixed(2), estimated: e.est },
+    scorecard: L.card.map(c => ({ item: c.k, rating: { good: "green", warn: "amber", bad: "red", na: "unknown" }[c.s], evidence: c.ev })),
+    matched_listings: rows.map(r => ({ title: r[F.title], store: r[F.store], price: r[F.price], stars: r[F.rating], ratings: r[F.ratings], listed: r[F.listed],
+      low_star_share: r[F.reviews] ? +(r[F.low] / r[F.reviews]).toFixed(3) : null, reviews_2021: r[F.y2021], reviews_2022: r[F.y2022], risk_flags: r[F.flags] })),
+    pooled: { reviews: p.reviews, one_two_star: p.low, four_five_star: p.high, reviews_by_year: Object.fromEntries(S.meta.years.map((y, i) => [y, p.years[i]])),
+      complaint_rates_in_low_star: Object.fromEntries(p.complaints.map(c => [S.meta.labels[c.k], +c.rate.toFixed(3)])),
+      praise_rates_in_high_star: Object.fromEntries(p.praise.map(c => [S.meta.labels[c.k], +c.rate.toFixed(3)])) },
+    niche: p.niche ? { name: p.niche.niche, category: S.meta.categories[p.niche.category], listings: p.niche.listings, ratings: p.niche.ratings, median_price: p.niche.median_price,
+      growth_2021_2022: p.niche.growth, top3_store_share: p.niche.top3_share, top_stores: p.niche.top_stores, low_star_share: p.niche.low_share, opportunity_score: p.niche.score } : null,
+    quotes,
+  };
+}
+function promptFor(pk) {
+  return `You are a skeptical dropshipping product researcher. A founder is deciding whether to test this product in a dropshipping store (a Shopify-style store, traffic from TikTok and Meta ads, a supplier ships direct). Candor matters more than encouragement: praise for a weak product costs them ad money and refunds.
+
+Evidence (JSON) from Amazon Reviews '23: matched Amazon listings with 1,000+ ratings, rates counted over every review of those listings, and a sample of the most helpful verified reviews as quotes. The data ends September 2023. Prices are 2023 Amazon prices. Fields marked estimated are assumptions, not the founder's numbers.
+
+${JSON.stringify(pk)}
+
+Write a report in Markdown with these sections, in this order:
+## Verdict
+Two or three sentences: test it, change it, or skip it, and why. Then "Confidence: high/medium/low".
+## Scorecard
+A table: item, rating (green/amber/red), one line of evidence. Use the scorecard given, adjusting a rating only if the evidence clearly says otherwise (say so). Fill in "Video appeal" with your judgment and label it judgment.
+## What buyers will complain about
+The two or three complaints this product will predictably attract, with rates and their denominators, each backed by a quote.
+## The gap to exploit
+What current listings keep failing at that a better variant, bundle or listing could fix. Back it with evidence.
+## Before spending on ads
+Three concrete checks or tests, cheapest first (for example: order two supplier samples and test the top complaint, a landing-page pre-sell, a $100 ad test with a stated kill rule). Include what has changed since 2023 that they must check (current TikTok and Amazon competition, prices).
+
+Rules:
+- Quote only from the quotes provided, word for word, inside double quotes, cited as ("[product]", [stars] stars, [year]). Never invent quotes, numbers, listings or supplier prices.
+- Separate product problems from shipping and packaging problems; the second matter more for dropshipping because suppliers ship slower than Amazon.
+- Amazon demand shows people want the product, not how a new store will sell. Don't forecast sales.
+- Mark anything not supported by the evidence as judgment.
+- Plain, direct sentences. Under 650 words.`;
+}
+async function askClaude() {
+  const L = S.last, btn = $("askClaude"), st = $("claudeStatus");
+  const sample = await getSample();
+  if (!sample) { st.textContent = "Claude isn't available in this view. Open the page on claude.ai while signed in."; btn.hidden = true; return; }
+  btn.disabled = true; st.textContent = "Claude is reading the evidence…";
+  const key = JSON.stringify([L.inp, [...L.checked].sort()]);
+  try {
+    const res = await sample(promptFor(evidencePacket()), { onText: ({ text }) => { showReport(text, false); st.textContent = "Writing…"; } });
+    L.report = res.text; L.reportKey = key;
+    showReport(res.text, true);
+    st.textContent = res.truncated ? "The answer was cut short." : "";
+  } catch (e) {
+    const code = e && e.code;
+    if (HIDE.includes(code)) { st.textContent = "Claude isn't enabled for this page in your account. Check the artifact's permissions."; btn.hidden = true; }
+    else if (code === "rate_limited") st.textContent = "You've hit a usage limit. Try again in a few minutes.";
+    else if (code === "session_expired") st.textContent = "Sign in to claude.ai again, then try again.";
+    else if (code === "refused") { st.textContent = "Claude declined this request. Try rewording the product idea."; $("report").innerHTML = ""; }
+    else if (code !== "cancelled") st.textContent = "The verdict stopped before it finished. Try again." + (e && e.text ? " The partial answer is shown." : "");
+    if (e && e.text) showReport(e.text, false);
+  } finally { btn.disabled = false; btn.textContent = "Ask again"; }
+}
+const norm = s => String(s).toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, " ").replace(/^[\s.,;:!?…"']+|[\s.,;:!?…"']+$/g, "").trim();
+function checkQuotes(md) {
+  const found = [...md.matchAll(/["“]([^"“”]{18,})["”]/g)].map(m => m[1]);
+  const corpus = S.last.quotes.all.map(({ q }) => norm(q[1] + " " + q[2]));
+  const res = found.map(s => {
+    const parts = norm(s).split(/\s*(?:\.\.\.|…)\s*/).filter(x => x.length > 6);
+    return { s, ok: parts.length > 0 && parts.every(part => corpus.some(c => c.includes(part))) };
+  });
+  return res;
+}
+function showReport(md, done) {
+  const out = $("report"); if (!out) return;
+  const html = window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(md)) : `<pre style="white-space:pre-wrap">${esc(md)}</pre>`;
+  let check = "";
+  if (done) {
+    const qc = checkQuotes(md), miss = qc.filter(x => !x.ok);
+    check = !qc.length ? `<div class="qcheck">No quotes to check.</div>`
+      : !miss.length ? `<div class="qcheck ok">All ${qc.length} quotes found word for word in the reviews.</div>`
+      : `<div class="qcheck miss">${qc.length - miss.length} of ${qc.length} quotes found word for word. Not found: ${miss.map(m => "“" + esc(m.s.slice(0, 80)) + "”").join("; ")}</div>`;
+  }
+  out.innerHTML = `<div class="report">${html}</div>${check}` + (done ? `<div class="actions"><button class="btn ghost" type="button" id="copyRep">Copy report</button><button class="btn ghost" type="button" id="saveRep" hidden>Save as Markdown</button><span class="status" id="repNote"></span></div>` : "");
+  if (!done) return;
+  $("copyRep").onclick = async () => { try { await navigator.clipboard.writeText(fullReport(md)); $("repNote").textContent = "Copied"; } catch { $("repNote").textContent = "Copy isn't allowed here. Select the text instead."; } };
+  (async () => {
+    if (S.downloads === undefined) S.downloads = window.claude && window.claude.use ? await window.claude.use("downloads").catch(() => null) : null;
+    if (!S.downloads || !$("saveRep")) return;
+    $("saveRep").hidden = false;
+    $("saveRep").onclick = async () => {
+      const name = "product-look-" + S.last.inp.q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".md";
+      try { await S.downloads.save({ filename: name, data: fullReport(md) }); $("repNote").textContent = "Saved"; }
+      catch (e) { $("repNote").textContent = e && e.code === "declined" ? "" : "Couldn't save. Use Copy instead."; }
+    };
+  })();
+}
+function fullReport(md) {
+  const L = S.last, p = L.pool;
+  const rows = L.hits.filter(h => L.checked.has(h.row[F.asin])).map(h => h.row);
+  return `# Product look: ${L.inp.q}\n\n_Product Looker, Amazon Reviews '23 (data through Sep 2023), ${new Date().toISOString().slice(0, 10)}_\n\n${md}\n\n## Matched listings\n\n| Listing | Store | Price | Stars | Ratings | 1–2★ share |\n|---|---|---|---|---|---|\n` +
+    rows.map(r => `| ${r[F.title].replace(/\|/g, "/")} | ${r[F.store]} | ${money(r[F.price])} | ${r[F.rating]} | ${fmt(r[F.ratings])} | ${pct(r[F.reviews] ? r[F.low] / r[F.reviews] : null)} |`).join("\n") + "\n";
+}
+
+// ---------- niches ----------
+let nicheSort = { k: "score", dir: -1 }, nicheLimit = 50, nicheSel = null;
+const NCOLS = [["niche", "Niche"], ["score", "Score", 1], ["listings", "Listings", 1], ["ratings", "Ratings", 1], ["growth", "2021→22", 1], ["low_share", "1–2★", 1], ["top3_share", "Top 3 stores", 1], ["median_price", "Median price", 1]];
+function renderNiches() {
+  const q = $("nq").value.trim().toLowerCase(), c = $("ncat").value, min = +$("nmin").value || 15;
+  let list = S.niches.filter(n => n.listings >= min && (!c || n.category === c) && (!q || n.niche.toLowerCase().includes(q)));
+  const k = nicheSort.k;
+  list.sort((a, b) => k === "niche" ? nicheSort.dir * a.niche.localeCompare(b.niche) : nicheSort.dir * ((a[k] ?? -9) - (b[k] ?? -9)));
+  $("nicheCount").textContent = `${fmt(list.length)} niches`;
+  const shown = list.slice(0, nicheLimit);
+  $("nicheMore").hidden = list.length <= nicheLimit;
+  $("nicheTable").innerHTML = `<thead><tr>${NCOLS.map(([key, lab, n]) => `<th class="${n ? "n" : ""}" aria-sort="${nicheSort.k === key ? (nicheSort.dir < 0 ? "descending" : "ascending") : "none"}"><button class="sort" data-k="${key}" type="button">${lab}${nicheSort.k === key ? (nicheSort.dir < 0 ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead>
+    <tbody>${shown.map(n => `<tr class="click ${nicheSel === n.id ? "sel" : ""}" data-id="${n.id}" tabindex="0"><td><span class="t">${esc(n.niche)}</span><span class="note">${esc(S.meta.categories[n.category])}</span></td>
+      <td class="n"><span class="scorebar"><i style="width:${n.score}%"></i></span>${fmt(n.score)}</td><td class="n">${fmt(n.listings)}</td><td class="n">${fmt(n.ratings)}</td>
+      <td class="n">${signed(n.growth)}</td><td class="n">${pct(n.low_share, 1)}</td><td class="n">${pct(n.top3_share)}</td><td class="n">${money(n.median_price)}</td></tr>`).join("")}</tbody>`;
+  $("nicheTable").querySelectorAll("button.sort").forEach(b => b.onclick = () => { const kk = b.dataset.k; nicheSort = { k: kk, dir: nicheSort.k === kk ? -nicheSort.dir : (kk === "niche" ? 1 : -1) }; renderNiches(); });
+  $("nicheTable").querySelectorAll("tr.click").forEach(tr => { const open = () => { nicheSel = +tr.dataset.id; renderNiches(); renderNicheDetail(S.niches[nicheSel]); }; tr.onclick = open; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }; });
+  if (nicheSel == null && shown.length) { nicheSel = shown[0].id; renderNicheDetail(shown[0]); renderNiches(); }
+}
+function renderNicheDetail(n) {
+  const sp = n.score_parts, L = S.meta.labels;
+  const comp = Object.entries(n.complaints).filter(([, v]) => v).map(([k, v]) => ({ k, rate: v, n: 1 })).sort((a, b) => b.rate - a.rate);
+  const flags = Object.entries(n.flags).filter(([, v]) => v >= 0.2).map(([k, v]) => `${k.replace("_", " ")} ${pct(v)}`).join(", ");
+  $("nicheDetail").innerHTML = `<div class="slip">
+    <header><h2>${esc(n.niche)}</h2><span class="note">${esc(S.meta.categories[n.category])} · score ${fmt(n.score)} of 100</span></header>
+    <div class="parts">${[["Demand", sp.demand, 30], ["Growth", sp.growth, 20], ["Complaint gap", sp.gap, 15], ["Room for sellers", sp.openness, 20], ["Price fit", sp.price, 15]].map(([lab, v, w]) => `<div class="fact"><span class="label">${lab}</span><span class="v">${fmt(v * w, 1)}<span class="muted small"> / ${w}</span></span></div>`).join("")}
+      <div class="fact"><span class="label">Penalties</span><span class="v">−${fmt(100 * (sp.risk_penalty + sp.bulk_penalty), 1)}</span></div></div>
+    <div class="cols">
+      <div><h3>Reviews per year</h3>${sparkSVG(n.years.slice(-5), S.meta.years)}<p class="note">${fmt(n.listings)} listings, ${fmt(n.ratings)} ratings, median ${money(n.median_price)}, ${pct(n.new_listing_share)} listed since 2021. Top stores: ${n.top_stores.map(([s, v]) => `${esc(s || "(none)")} ${pct(v)}`).join(", ")}.${flags ? ` Flags: ${esc(flags)}.` : ""}</p></div>
+      <div><h3>Top complaints in 1–2 star reviews</h3><div class="bars">${barsHTML(comp, 0, "c", 5)}</div></div>
+    </div>
+    <h3>Most-rated listings</h3>
+    <div class="tablewrap"><table><thead><tr><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">2021→22</th></tr></thead><tbody>
+      ${n.top.map(t => `<tr><td><span class="t">${esc(t[1])}</span><span class="note">${esc(t[2])} · <a href="https://www.amazon.com/dp/${t[0]}" target="_blank" rel="noopener">${t[0]}</a></span></td><td class="n">${money(t[3])}</td><td class="n">${fmt(t[4], 1)}</td><td class="n">${fmt(t[5])}</td><td class="n">${signed(t[6] ? (t[7] - t[6]) / t[6] : null)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="actions"><button class="btn" type="button" id="nicheLook">Look up a product in this niche</button></div>
+  </div>`;
+  $("nicheLook").onclick = () => {
+    const last = n.niche.split(" > ").pop();
+    $("q").value = last.replace(/&/g, " ").replace(/\s+/g, " ").trim(); $("cat").value = n.category;
+    ["price", "cost", "ship"].forEach(id => $(id).value = "");
+    showTab("lookup"); runLookup();
+  };
+}
+
+// ---------- margin calculator ----------
+function fillCalc(e) {
+  if (e.price != null) $("m_price").value = (+e.price).toFixed(2);
+  if (e.cost != null) $("m_cost").value = (+e.cost).toFixed(2);
+  if (e.ship != null) $("m_ship").value = (+e.ship).toFixed(2);
+  const lowShare = S.last && S.last.pool ? S.last.pool.lowShare : null;
+  if (lowShare != null) $("m_refund").value = Math.max(3, Math.round(lowShare * 100 * 0.6));
+  renderCalc();
+}
+function renderCalc() {
+  const v = id => Number($(id).value) || 0;
+  const price = v("m_price"), cost = v("m_cost"), ship = v("m_ship"), other = v("m_other"), fee = price * v("m_feep") / 100 + v("m_feef"), ref = v("m_refund") / 100, cpa = v("m_cpa");
+  const gross = price - cost - ship - other - fee;
+  const refundLoss = ref * (price);            // refunded orders return the price; product, shipping and fees are already spent
+  const net = gross - refundLoss;
+  const after = net - cpa;
+  const beCPA = net, beROAS = net > 0 ? price / net : null;
+  const st = after >= 10 ? "good" : after >= 3 ? "warn" : "bad";
+  $("calcOut").innerHTML = `<header><h2>Per order</h2><span class="chip ${st}">${{ good: "Healthy", warn: "Thin", bad: "Losing money" }[st]}</span></header>
+    <table class="ledger"><tbody>
+      <tr><td>Retail price</td><td class="n">${money(price)}</td></tr>
+      <tr><td>Supplier cost</td><td class="n">−${money(cost)}</td></tr>
+      <tr><td>Shipping</td><td class="n">−${money(ship)}</td></tr>
+      <tr><td>Packaging, apps</td><td class="n">−${money(other)}</td></tr>
+      <tr><td>Payment fees</td><td class="n">−${money(fee)}</td></tr>
+      <tr><td>Refunds (${fmt(ref * 100, 1)}% of orders, averaged)</td><td class="n">−${money(refundLoss)}</td></tr>
+      <tr><td><b>Profit before ads</b></td><td class="n"><b>${money(net)}</b></td></tr>
+      <tr><td>Ad cost per purchase</td><td class="n">−${money(cpa)}</td></tr>
+      <tr class="total"><td>Profit per order after ads</td><td class="n">${money(after)}</td></tr>
+    </tbody></table>
+    <div class="facts">
+      <div class="fact"><span class="label">Markup</span><span class="v">${cost + ship > 0 ? fmt(price / (cost + ship), 1) + "x" : "–"}</span></div>
+      <div class="fact"><span class="label">Break-even ad cost</span><span class="v">${money(beCPA)}</span></div>
+      <div class="fact"><span class="label">Break-even ROAS</span><span class="v">${beROAS ? fmt(beROAS, 2) + "x" : "–"}</span></div>
+      <div class="fact"><span class="label">Margin after ads</span><span class="v">${price ? pct(after / price) : "–"}</span></div>
+    </div>
+    <p class="note">Break-even ad cost is the most you can pay per purchase before losing money. Break-even ROAS is revenue per ad dollar at that cost. New stores often see $15–$40 per purchase on cold traffic. That's a judgment, not data from this tool, so test your own.</p>`;
+}
+
+// ---------- tabs and boot ----------
+const TABS = ["lookup", "niches", "margin", "about"];
+function showTab(t) {
+  TABS.forEach(x => { $("tab-" + x).setAttribute("aria-selected", x === t); $("view-" + x).hidden = x !== t; });
+  if (t === "niches" && S.niches && !$("nicheTable").innerHTML) renderNiches();
+  try { localStorage.setItem("pl-tab", t); } catch {}
+}
+TABS.forEach(t => $("tab-" + t).onclick = () => showTab(t));
+$("ideaForm").addEventListener("submit", runLookup);
+["nq", "ncat", "nmin"].forEach(id => $(id).addEventListener("input", () => { nicheLimit = 50; renderNiches(); }));
+$("nicheMore").onclick = () => { nicheLimit += 50; renderNiches(); };
+$("calcForm").addEventListener("input", renderCalc);
+$("calcForm").addEventListener("submit", e => e.preventDefault());
+
+(async function boot() {
+  renderCalc();
+  try {
+    [S.meta, S.niches] = await Promise.all([getJSON("data/meta.json"), getJSON("data/niches.json")]);
+  } catch (e) { $("results").innerHTML = `<div class="slip"><p class="err">Couldn't load the data files. Reload the page to try again.</p></div>`; $("loadStatus").textContent = ""; return; }
+  S.meta.fields.forEach((f, i) => F[f] = i);
+  const m = S.meta;
+  $("aboutCounts").textContent = `${fmt(m.listings_total)} listings · ${fmt(m.reviews_total)} reviews counted · ${fmt(m.niches)} niches · ${fmt(Object.values(m.products_in_search).reduce((a, b) => a + b, 0))} listings in the product search · built ${m.built}`;
+  $("tagline").textContent = `Type a product you're thinking of selling. See what buyers say in ${fmt(m.reviews_total / 1e6, 0)} million Amazon reviews of the closest listings, whether the numbers work, and what will go wrong.`;
+  const hash = (location.hash || "").slice(1);
+  let saved = null; try { saved = localStorage.getItem("pl-tab"); } catch {}
+  const start = TABS.includes(hash) ? hash : (TABS.includes(saved) ? saved : "lookup");
+  showTab(start);
+  runLookup();
+})();
+</script>

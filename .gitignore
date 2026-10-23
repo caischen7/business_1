@@ -1,0 +1,6 @@
+amazon_2023_raw/
+*.tmp
+__pycache__/
+site/data/
+site/tests/out/
+.claude/settings.local.json
