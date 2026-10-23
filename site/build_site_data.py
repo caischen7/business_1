@@ -55,7 +55,12 @@ LABELS = {
     "as_described": "As described", "pet_loves": "Pet loves it", "gift": "Bought as a gift",
     "would_buy_again": "Would buy again",
 }
-FLAGS = ["ingestible", "topical", "battery", "fragile", "liquid_aerosol", "sized", "plug_in", "sharp_weapon", "kids"]
+FLAGS = ["ingestible", "topical", "battery", "fragile", "liquid_aerosol", "sized", "plug_in", "sharp_weapon", "kids", "pesticide"]
+# Added after the first extraction; applied here too so existing data/products_* files get it.
+PESTICIDE = re.compile(r"\b(?:flea|ticks?|pesticides?|insecticides?|insect repellent|bug spray|mosquito repellent|"
+                       r"dewormer|wormer|herbicides?|rodenticide|rat poison)\b", re.I)
+VIDEO_TAG = re.compile(r"\[\[VIDEOID:[^\]]*\]\]")
+QUOTE_MAX = 450  # extract_products.SAMPLE_MAX_CHARS
 YEARS = list(range(2015, 2024))
 
 
@@ -87,8 +92,15 @@ def main():
     df["low_n"] = df["stars_1"] + df["stars_2"]
     df["high_n"] = df["stars_4"] + df["stars_5"]
     df["risk_flags"] = df["risk_flags"].fillna("")
+    pest = (df["title"].fillna("") + " " + df["category_path"].fillna("")).str.contains(PESTICIDE)
+    df.loc[pest & ~df["risk_flags"].str.contains("pesticide"), "risk_flags"] = df["risk_flags"].where(df["risk_flags"] == "", df["risk_flags"] + ";") + "pesticide"
     df["store"] = df["store"].fillna("")
     df["first_year"] = pd.to_datetime(df["first_available"], errors="coerce").dt.year
+
+    # Reviews in the dataset dip from 2021 to 2022 across whole categories (a collection effect),
+    # so growth is reported relative to the category's own change.
+    cat_growth = {c: float(g["y2022"].sum() / g["y2021"].sum() - 1) if g["y2021"].sum() else 0.0
+                  for c, g in df.groupby("category")}
 
     # ---- niches -------------------------------------------------------------
     niches = []
@@ -102,6 +114,7 @@ def main():
         top3 = by_store.head(3).sum() / max(by_store.sum(), 1)
         y21, y22 = g["y2021"].sum(), g["y2022"].sum()
         growth = (y22 - y21) / y21 if y21 else None
+        rel = (1 + growth) / (1 + cat_growth[cat]) - 1 if growth is not None else None
         flag_share = {f: r(g["risk_flags"].str.contains(rf"\b{f}\b").mean(), 3) for f in FLAGS}
         new_share = (g["first_year"] >= 2021).mean()
         top = g.sort_values("rating_number", ascending=False).head(8)
@@ -111,7 +124,7 @@ def main():
             "median_price": r(g["price"].median(), 2), "avg_rating": r((g["average_rating"] * g["rating_number"]).sum() / g["rating_number"].sum(), 2),
             "low_share": r(low / reviews if reviews else None), "top3_share": r(top3),
             "top_stores": [[s, r(v / max(by_store.sum(), 1))] for s, v in by_store.head(3).items()],
-            "years": [int(g[f"y{y}"].sum()) for y in YEARS], "growth": r(growth),
+            "years": [int(g[f"y{y}"].sum()) for y in YEARS], "growth": r(growth), "growth_vs_cat": r(rel),
             "new_listing_share": r(new_share), "median_weight": r(g["weight_lb"].median(), 2),
             "median_side": r(g["longest_side_in"].median(), 1),
             "complaints": {k: r(g[f"low_{k}"].sum() / low if low else None) for k in COMPLAINTS},
@@ -152,6 +165,10 @@ def main():
     shards = [dict() for _ in range(QUOTE_SHARDS)]
     for t in reviews.itertuples(index=False):
         text = str(t.review_text) if not pd.isna(t.review_text) else ""
+        cut = len(text) >= QUOTE_MAX
+        text = re.sub(r"\s+", " ", VIDEO_TAG.sub(" ", text)).strip()
+        if cut:
+            text = text.rsplit(" ", 1)[0].rstrip(" ,;:-") + " …"
         title = str(t.review_title) if not pd.isna(t.review_title) else ""
         shards[shard_of(t.parent_asin)].setdefault(t.parent_asin, []).append(
             [int(t.rating), title, text, int(t.helpful_vote), int(t.year) if not pd.isna(t.year) else None])
@@ -166,6 +183,7 @@ def main():
         "products_in_search": counts, "listings_total": int(len(df)),
         "listings_by_category": {k: int(v) for k, v in df["category"].value_counts().items()},
         "reviews_total": int(df["reviews"].sum()), "niches": len(niches),
+        "category_growth": {c: round(v, 4) for c, v in cat_growth.items()},
     }
     (OUT / "meta.json").write_text(json.dumps(meta, indent=1))
     size = sum(p.stat().st_size for p in OUT.glob("*.json")) / 1e6
@@ -181,13 +199,13 @@ def score_niches(niches):
         return max(lo, min(hi, x))
     for n in niches:
         demand = clamp((math.log10(max(n["ratings"], 1)) - 4) / 2)               # 10k ratings -> 0, 1M -> 1
-        g = n["growth"] if n["growth"] is not None else 0
-        growth = clamp((g + 0.2) / 0.5)                                          # -20% -> 0, +30% -> 1
+        g = n["growth_vs_cat"] if n["growth_vs_cat"] is not None else 0
+        growth = clamp((g + 0.2) / 0.5)                     # vs. category: -20% -> 0, +30% -> 1
         gap = clamp(((n["low_share"] or 0) - 0.06) / 0.10)                       # 6% low-star -> 0, 16% -> 1
         openness = clamp(1 - ((n["top3_share"] or 0) - 0.15) / 0.5)              # top 3 stores hold 15% -> 1, 65% -> 0
         p = n["median_price"] or 0
         price = 1.0 if 20 <= p <= 60 else (0.5 if 15 <= p <= 80 else 0.0)
-        risk = max((n["flags"].get(f) or 0) for f in ("ingestible", "topical", "sharp_weapon"))
+        risk = max((n["flags"].get(f) or 0) for f in ("ingestible", "topical", "sharp_weapon", "pesticide"))
         w = n["median_weight"] or 0
         side = n["median_side"] or 0
         bulk = 1.0 if (w > 5 or side > 30) else (0.5 if (w > 2 or side > 18) else 0.0)

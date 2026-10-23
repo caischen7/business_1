@@ -211,7 +211,7 @@ svg.spark { width: 100%; height: 70px; display: block }
     <div class="results">
       <div class="slip">
         <header><h2>Niche board</h2><span class="note" id="nicheCount"></span></header>
-        <p class="small muted">Every Amazon sub-category with at least 15 listings priced $10–$100 and 100+ ratings. The opportunity score rewards demand, growth from 2021 to 2022, a high share of unhappy buyers (a gap a better product can fill), room for new sellers and a $20–$60 median price. It subtracts points for ingestible, topical or weapon products and for heavy or bulky ones. Click a row for its breakdown.</p>
+        <p class="small muted">Every Amazon sub-category with at least 15 listings priced $10–$100 and 100+ ratings. The opportunity score rewards demand, growth from 2021 to 2022, a high share of unhappy buyers (a gap a better product can fill), room for new sellers and a $20–$60 median price. It subtracts points for ingestible, topical, pesticide or weapon products and for heavy or bulky ones. Click a row for its breakdown.</p>
         <div class="nichebar">
           <div class="field"><label for="nq">Search niches</label><input id="nq" placeholder="e.g. litter, yoga, hair"></div>
           <div class="field"><label for="ncat">Category</label>
@@ -262,7 +262,7 @@ svg.spark { width: 100%; height: 70px; display: block }
         <li><b>Which listings.</b> Listings priced $10–$100 with 100+ ratings make up the niche board. The product search covers the ones with 1,000+ ratings, so a lookup compares you with sellers who have proven demand.</li>
         <li><b>Complaint and praise rates</b> are counted over every review of a listing, not a sample. Complaint rates use 1–2 star reviews and praise rates use 4–5 star reviews. They come from keyword rules, so read the quotes before trusting a rate.</li>
         <li><b>Quotes</b> are the most helpful verified reviews of each listing: two low, one middle and two high. They are not a random sample.</li>
-        <li><b>Trend</b> compares reviews written in 2021 with 2022, the last two full years. Reviews in 2023 run only through September.</li>
+        <li><b>Trend</b> compares reviews written in 2021 with 2022, the last two full years, <i>relative to the whole category</i>. The dataset has fewer 2022 reviews than 2021 in every category, a collection effect rather than a real slump, so a raw drop would make nearly everything look like it was fading. Reviews in 2023 run only through September.</li>
         <li><b>Prices</b> are from when the data was collected (2023) and there are no supplier prices, so cost and shipping estimates are labeled as estimates.</li>
       </ul>
       <h2>What it can't tell you</h2>
@@ -274,12 +274,12 @@ svg.spark { width: 100%; height: 70px; display: block }
       <h2>Scorecard rules</h2>
       <ul>
         <li><b>Demand</b> is green when the matched listings hold 30,000+ ratings in total, and amber at 8,000+.</li>
-        <li><b>Trend</b> is green at +10% or more reviews from 2021 to 2022, and red below −15%.</li>
+        <li><b>Trend</b> is green when reviews grew 10% or more faster than the category from 2021 to 2022, and red when they fell 15% or more behind it.</li>
         <li><b>Competition</b> is red when one seller holds half the matched ratings or the niche's top three hold half, and amber at 30%.</li>
         <li><b>Margin</b> is green at 3x markup over cost plus shipping with $15+ profit before ads, and amber at 2x or $8+.</li>
         <li><b>Shipping</b> is amber over 2 lb, over 18 inches or for fragile products, and red over 5 lb or 30 inches.</li>
         <li><b>Returns</b> is green when under 8% of reviews are 1–2 stars, and red at 13% or more.</li>
-        <li><b>Rules and ad policy</b> is red when 40%+ of matches are ingestible, topical or weapons, and amber for batteries, plug-ins, aerosols or kids' products.</li>
+        <li><b>Rules and ad policy</b> is red when 40%+ of matches are ingestible, topical, pesticides or weapons, and amber for batteries, plug-ins, aerosols or kids' products.</li>
       </ul>
     </div>
   </section>
@@ -296,7 +296,7 @@ const money = n => n == null || isNaN(n) ? "–" : "$" + fmt(n, 2);
 const pct = (n, d = 0) => n == null || isNaN(n) ? "–" : fmt(100 * n, d) + "%";
 const signed = n => n == null || isNaN(n) ? "–" : (n >= 0 ? "+" : "−") + fmt(Math.abs(100 * n), 0) + "%";
 
-const S = { meta: null, niches: null, products: {}, tokens: {}, quoteShards: {}, last: null, sample: undefined, downloads: undefined };
+const S = { catOf: new Map(), meta: null, niches: null, products: {}, tokens: {}, quoteShards: {}, last: null, sample: undefined, downloads: undefined };
 let F = {};
 
 // ---------- data loading ----------
@@ -313,6 +313,7 @@ async function loadCategory(cat) {
   const rows = await getJSON(`data/products-${cat}.json`);
   S.products[cat] = rows;
   S.tokens[cat] = rows.map(r => new Set(tok(r[F.title] + " " + r[F.store])));
+  rows.forEach(r => S.catOf.set(r, cat));
 }
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(s) { let c = 0xFFFFFFFF; for (let i = 0; i < s.length; i++) c = CRC[(c ^ s.charCodeAt(i)) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -348,6 +349,8 @@ function search(q, cats) {
 }
 
 // ---------- evidence and scorecard ----------
+function catMove(p) { const c = p.niche ? p.niche.category : null; return c ? S.meta.category_growth[c] : null; }
+const relGrowth = (r, cat) => r[F.y2021] ? r[F.y2022] / (r[F.y2021] * (1 + (S.meta.category_growth[cat] || 0))) - 1 : null;
 const SHIP_EST = w => w == null ? 5 : w <= 0.5 ? 3.5 : w <= 1 ? 4.5 : w <= 2 ? 6.5 : w <= 5 ? 10 : 16;
 const median = a => { const v = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!v.length) return null; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 function pool(rows) {
@@ -356,6 +359,9 @@ function pool(rows) {
   p.years = S.meta.years.map(y => sum("y" + y));
   p.y21 = sum("y2021"); p.y22 = sum("y2022");
   p.growth = p.y21 ? (p.y22 - p.y21) / p.y21 : null;
+  // Expected 2022 reviews if each listing moved with its category (the dataset dips 2021 -> 2022 overall).
+  const expected = rows.reduce((s, r) => s + (r[F.y2021] || 0) * (1 + (S.meta.category_growth[S.catOf.get(r)] || 0)), 0);
+  p.rel = expected ? p.y22 / expected - 1 : null;
   p.lowShare = p.reviews ? p.low / p.reviews : null;
   p.complaints = S.meta.complaints.map(k => ({ k, n: sum("c_" + k), rate: p.low ? sum("c_" + k) / p.low : 0 })).sort((a, b) => b.rate - a.rate);
   p.praise = S.meta.praise.map(k => ({ k, n: sum("p_" + k), rate: p.high ? sum("p_" + k) / p.high : 0 })).sort((a, b) => b.rate - a.rate);
@@ -381,8 +387,8 @@ function scorecard(p, e) {
   const add = (k, s, ev) => out.push({ k, s, ev });
   add("Demand", p.ratings >= 30000 ? "good" : p.ratings >= 8000 ? "warn" : "bad",
     `${fmt(p.ratings)} ratings across ${p.n} matched listings, each with 1,000+.`);
-  add("Trend", p.growth == null ? "na" : p.growth >= 0.10 ? "good" : p.growth >= -0.15 ? "warn" : "bad",
-    p.growth == null ? "Not enough 2021 reviews to compare." : `Reviews ${signed(p.growth)} from 2021 (${fmt(p.y21)}) to 2022 (${fmt(p.y22)}).`);
+  add("Trend", p.rel == null ? "na" : p.rel >= 0.10 ? "good" : p.rel >= -0.15 ? "warn" : "bad",
+    p.rel == null ? "Not enough 2021 reviews to compare." : `${signed(p.rel)} against the category from 2021 to 2022. Reviews went ${fmt(p.y21)} → ${fmt(p.y22)} while the category moved ${signed(catMove(p))}.`);
   const nt = p.niche ? p.niche.top3_share : 0;
   add("Competition", p.topStoreShare >= 0.5 || nt >= 0.5 ? "bad" : p.topStoreShare >= 0.3 || nt >= 0.3 ? "warn" : "good",
     `Top seller in the matches: ${p.stores[0][0]} with ${pct(p.topStoreShare)} of ratings.` + (p.niche ? ` Top three stores hold ${pct(nt)} of the ${p.niche.niche} niche.` : ""));
@@ -395,9 +401,9 @@ function scorecard(p, e) {
   const ret = p.complaints.filter(c => ["size_fit", "not_as_pictured", "broke_cheap", "stopped_working"].includes(c.k)).sort((a, b) => b.rate - a.rate)[0];
   add("Returns", p.lowShare == null ? "na" : p.lowShare < 0.08 ? "good" : p.lowShare < 0.13 ? "warn" : "bad",
     `${pct(p.lowShare, 1)} of ${fmt(p.reviews)} reviews are 1–2 stars.` + (ret && ret.rate > 0 ? ` Top return driver: ${S.meta.labels[ret.k].toLowerCase()} (${pct(ret.rate)} of low-star reviews).` : ""));
-  const hard = ["ingestible", "topical", "sharp_weapon"].filter(f => p.flagShare[f] >= 0.4);
+  const hard = ["ingestible", "topical", "sharp_weapon", "pesticide"].filter(f => p.flagShare[f] >= 0.4);
   const soft = ["battery", "plug_in", "liquid_aerosol", "kids"].filter(f => p.flagShare[f] >= 0.4);
-  const FL = { ingestible: "ingestible", topical: "applied to skin or hair", sharp_weapon: "blades or weapons", battery: "batteries", plug_in: "plug-in electrical", liquid_aerosol: "liquids or aerosols", kids: "for kids" };
+  const FL = { ingestible: "ingestible", topical: "applied to skin or hair", sharp_weapon: "blades or weapons", pesticide: "pesticides (EPA-registered)", battery: "batteries", plug_in: "plug-in electrical", liquid_aerosol: "liquids or aerosols", kids: "for kids" };
   add("Rules and ad policy", hard.length ? "bad" : soft.length ? "warn" : "good",
     hard.length || soft.length ? `Most matches are ${[...hard, ...soft].map(f => FL[f]).join(", ")}. Check FDA, CPSC and Meta or TikTok ad rules.` : "No regulated-product flags in most matches.");
   add("Video appeal", "na", "Judgment. Ask Claude below, or film the sample yourself.");
@@ -411,7 +417,7 @@ function overall(card) {
 }
 
 // ---------- rendering: look up ----------
-const shortName = t => t.split(/[,|(\-–—]/)[0].split(" ").slice(0, 7).join(" ");
+const shortName = t => t.split(/[,|(]| [-–—] /)[0].split(" ").slice(0, 7).join(" ");
 function sparkSVG(values, labels, partialLast = true) {
   const W = 320, H = 70, pad = 18, max = Math.max(...values, 1);
   const x = i => pad + i * (W - 2 * pad) / Math.max(values.length - 1, 1), y = v => H - 16 - (v / max) * (H - 30);
@@ -508,8 +514,8 @@ function quoteHTML({ r, q }, cls) {
 function compsHTML() {
   const L = S.last;
   return `<div class="slip"><header><h3>Closest listings</h3><span class="note">Untick a listing that isn't really your product; everything above updates.</span></header>
-    <div class="tablewrap"><table><thead><tr><th>Use</th><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">1–2★</th><th class="n">2021→22</th><th class="n">Listed</th></tr></thead><tbody>
-    ${L.hits.map(h => { const r = h.row, g = r[F.y2021] ? (r[F.y2022] - r[F.y2021]) / r[F.y2021] : null;
+    <div class="tablewrap"><table><thead><tr><th>Use</th><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">1–2★</th><th class="n" title="Change in reviews from 2021 to 2022, relative to the category">Trend</th><th class="n">Listed</th></tr></thead><tbody>
+    ${L.hits.map(h => { const r = h.row, g = relGrowth(r, h.cat);
       return `<tr><td><input type="checkbox" class="comp" aria-label="Use ${esc(shortName(r[F.title]))}" data-a="${r[F.asin]}" ${L.checked.has(r[F.asin]) ? "checked" : ""}></td>
       <td><span class="t">${esc(r[F.title])}</span><span class="note">${esc(r[F.store])} · <a href="https://www.amazon.com/dp/${r[F.asin]}" target="_blank" rel="noopener">${r[F.asin]}</a></span></td>
       <td class="n">${money(r[F.price])}</td><td class="n">${fmt(r[F.rating], 1)}</td><td class="n">${fmt(r[F.ratings])}</td>
@@ -539,11 +545,13 @@ function evidencePacket() {
     scorecard: L.card.map(c => ({ item: c.k, rating: { good: "green", warn: "amber", bad: "red", na: "unknown" }[c.s], evidence: c.ev })),
     matched_listings: rows.map(r => ({ title: r[F.title], store: r[F.store], price: r[F.price], stars: r[F.rating], ratings: r[F.ratings], listed: r[F.listed],
       low_star_share: r[F.reviews] ? +(r[F.low] / r[F.reviews]).toFixed(3) : null, reviews_2021: r[F.y2021], reviews_2022: r[F.y2022], risk_flags: r[F.flags] })),
+    trend_note: "The dataset has fewer 2022 than 2021 reviews in every category (a collection effect). Judge trend against the category.",
+    trend_vs_category_2021_2022: p.rel != null ? +p.rel.toFixed(3) : null, category_review_change_2021_2022: catMove(p),
     pooled: { reviews: p.reviews, one_two_star: p.low, four_five_star: p.high, reviews_by_year: Object.fromEntries(S.meta.years.map((y, i) => [y, p.years[i]])),
       complaint_rates_in_low_star: Object.fromEntries(p.complaints.map(c => [S.meta.labels[c.k], +c.rate.toFixed(3)])),
       praise_rates_in_high_star: Object.fromEntries(p.praise.map(c => [S.meta.labels[c.k], +c.rate.toFixed(3)])) },
     niche: p.niche ? { name: p.niche.niche, category: S.meta.categories[p.niche.category], listings: p.niche.listings, ratings: p.niche.ratings, median_price: p.niche.median_price,
-      growth_2021_2022: p.niche.growth, top3_store_share: p.niche.top3_share, top_stores: p.niche.top_stores, low_star_share: p.niche.low_share, opportunity_score: p.niche.score } : null,
+      growth_2021_2022: p.niche.growth, growth_vs_category: p.niche.growth_vs_cat, top3_store_share: p.niche.top3_share, top_stores: p.niche.top_stores, low_star_share: p.niche.low_share, opportunity_score: p.niche.score } : null,
     quotes,
   };
 }
@@ -637,7 +645,7 @@ function fullReport(md) {
 
 // ---------- niches ----------
 let nicheSort = { k: "score", dir: -1 }, nicheLimit = 50, nicheSel = null;
-const NCOLS = [["niche", "Niche"], ["score", "Score", 1], ["listings", "Listings", 1], ["ratings", "Ratings", 1], ["growth", "2021→22", 1], ["low_share", "1–2★", 1], ["top3_share", "Top 3 stores", 1], ["median_price", "Median price", 1]];
+const NCOLS = [["niche", "Niche"], ["score", "Score", 1], ["listings", "Listings", 1], ["ratings", "Ratings", 1], ["growth_vs_cat", "Trend", 1], ["low_share", "1–2★", 1], ["top3_share", "Top 3 stores", 1], ["median_price", "Median price", 1]];
 function renderNiches() {
   const q = $("nq").value.trim().toLowerCase(), c = $("ncat").value, min = +$("nmin").value || 15;
   let list = S.niches.filter(n => n.listings >= min && (!c || n.category === c) && (!q || n.niche.toLowerCase().includes(q)));
@@ -649,7 +657,7 @@ function renderNiches() {
   $("nicheTable").innerHTML = `<thead><tr>${NCOLS.map(([key, lab, n]) => `<th class="${n ? "n" : ""}" aria-sort="${nicheSort.k === key ? (nicheSort.dir < 0 ? "descending" : "ascending") : "none"}"><button class="sort" data-k="${key}" type="button">${lab}${nicheSort.k === key ? (nicheSort.dir < 0 ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead>
     <tbody>${shown.map(n => `<tr class="click ${nicheSel === n.id ? "sel" : ""}" data-id="${n.id}" tabindex="0"><td><span class="t">${esc(n.niche)}</span><span class="note">${esc(S.meta.categories[n.category])}</span></td>
       <td class="n"><span class="scorebar"><i style="width:${n.score}%"></i></span>${fmt(n.score)}</td><td class="n">${fmt(n.listings)}</td><td class="n">${fmt(n.ratings)}</td>
-      <td class="n">${signed(n.growth)}</td><td class="n">${pct(n.low_share, 1)}</td><td class="n">${pct(n.top3_share)}</td><td class="n">${money(n.median_price)}</td></tr>`).join("")}</tbody>`;
+      <td class="n">${signed(n.growth_vs_cat)}</td><td class="n">${pct(n.low_share, 1)}</td><td class="n">${pct(n.top3_share)}</td><td class="n">${money(n.median_price)}</td></tr>`).join("")}</tbody>`;
   $("nicheTable").querySelectorAll("button.sort").forEach(b => b.onclick = () => { const kk = b.dataset.k; nicheSort = { k: kk, dir: nicheSort.k === kk ? -nicheSort.dir : (kk === "niche" ? 1 : -1) }; renderNiches(); });
   $("nicheTable").querySelectorAll("tr.click").forEach(tr => { const open = () => { nicheSel = +tr.dataset.id; renderNiches(); renderNicheDetail(S.niches[nicheSel]); }; tr.onclick = open; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }; });
   if (nicheSel == null && shown.length) { nicheSel = shown[0].id; renderNicheDetail(shown[0]); renderNiches(); }
@@ -667,8 +675,8 @@ function renderNicheDetail(n) {
       <div><h3>Top complaints in 1–2 star reviews</h3><div class="bars">${barsHTML(comp, 0, "c", 5)}</div></div>
     </div>
     <h3>Most-rated listings</h3>
-    <div class="tablewrap"><table><thead><tr><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">2021→22</th></tr></thead><tbody>
-      ${n.top.map(t => `<tr><td><span class="t">${esc(t[1])}</span><span class="note">${esc(t[2])} · <a href="https://www.amazon.com/dp/${t[0]}" target="_blank" rel="noopener">${t[0]}</a></span></td><td class="n">${money(t[3])}</td><td class="n">${fmt(t[4], 1)}</td><td class="n">${fmt(t[5])}</td><td class="n">${signed(t[6] ? (t[7] - t[6]) / t[6] : null)}</td></tr>`).join("")}
+    <div class="tablewrap"><table><thead><tr><th>Listing</th><th class="n">Price</th><th class="n">Stars</th><th class="n">Ratings</th><th class="n">Trend</th></tr></thead><tbody>
+      ${n.top.map(t => `<tr><td><span class="t">${esc(t[1])}</span><span class="note">${esc(t[2])} · <a href="https://www.amazon.com/dp/${t[0]}" target="_blank" rel="noopener">${t[0]}</a></span></td><td class="n">${money(t[3])}</td><td class="n">${fmt(t[4], 1)}</td><td class="n">${fmt(t[5])}</td><td class="n">${signed(t[6] ? t[7] / (t[6] * (1 + (S.meta.category_growth[n.category] || 0))) - 1 : null)}</td></tr>`).join("")}
     </tbody></table></div>
     <div class="actions"><button class="btn" type="button" id="nicheLook">Look up a product in this niche</button></div>
   </div>`;

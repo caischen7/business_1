@@ -79,6 +79,8 @@ RISK_RULES = {
     "sharp_weapon": r"\b(?:knife|knives|blade|machete|axe|hatchet|airsoft|bb gun|pepper spray|"
                     r"crossbow|arrows?|ammo|ammunition|holster)\b",
     "kids": r"\b(?:baby|babies|infant|toddler|kids?|children|child)\b",
+    "pesticide": r"\b(?:flea|ticks?|pesticides?|insecticides?|insect repellent|bug spray|mosquito repellent|"
+                 r"dewormer|wormer|herbicides?|rodenticide|rat poison)\b",
 }
 RISK_RES = {k: re.compile(v, re.I) for k, v in RISK_RULES.items()}
 
@@ -309,6 +311,7 @@ def band(stars):
 
 def clean(text):
     text = re.sub(r"<br\s*/?>", " ", text or "", flags=re.I)
+    text = re.sub(r"\[\[VIDEOID:[^\]]*\]\]", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 

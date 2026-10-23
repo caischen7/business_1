@@ -19,7 +19,8 @@ const check = (ok, msg) => { console.log((ok ? "ok   " : "FAIL ") + msg); if (!o
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
     const errors = [];
     page.on("pageerror", e => errors.push(String(e)));
-    page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+    // External fonts and cdnjs can be unreachable from a sandbox; only the page's own errors count.
+    page.on("console", m => { if (m.type() === "error" && !/Failed to load resource: net::/.test(m.text())) errors.push(m.text()); });
     await page.addInitScript(() => {
       window.claude = { use: async name => {
         if (name === "sample") return async (prompt, opts) => {
